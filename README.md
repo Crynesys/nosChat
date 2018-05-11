@@ -2,7 +2,7 @@
 
 A simple chat, running in nos, where :
  - people can find fund for a project with a message or a chat room;
- - create an airdrop room for np-* tokens ( future feature);
+ - create an airdrop room for np-5 tokens ( future feature);
 
 ## License
 
