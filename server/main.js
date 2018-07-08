@@ -19,7 +19,8 @@ function createDirectory(directoryPath) {
     }
 }
 
-mongoose.connect(config.database, async (err) => {
+// mongoose.connect(config.database, async (err) => {
+mongoose.connect('mongodb://nosman:n0sm4n@ds125381.mlab.com:25381/noschat', async (err) => {
     if (err) {
         console.error('connect database error!');
         console.error(err);

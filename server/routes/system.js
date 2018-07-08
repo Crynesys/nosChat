@@ -18,11 +18,11 @@ module.exports = {
 
         const users = await User.find(
             { username: { $regex: keywords } },
-            { avatar: 1, username: 1 },
+            { avatar: 1, username: 1, neoAddress: 1 },
         );
         const groups = await Group.find(
             { name: { $regex: keywords } },
-            { avatar: 1, name: 1, members: 1 },
+            { avatar: 1, name: 1, members: 1, nosAddress: 1 },
         );
 
         return {
@@ -32,6 +32,7 @@ module.exports = {
                 avatar: group.avatar,
                 name: group.name,
                 members: group.members.length,
+                nosAddress: group.nosAddress,
             })),
         };
     },

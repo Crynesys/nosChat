@@ -1,0 +1,499 @@
+import React, { Component } from 'react';
+import autobind from 'autobind-decorator';
+import { connect } from 'react-redux';
+import PropTypes from 'prop-types';
+import ImmutablePropTypes from 'react-immutable-proptypes';
+import * as qiniu from 'qiniu-js';
+
+import action from '@/state/action';
+import socket from '@/socket';
+import IconButton from '@/components/IconButton';
+import Dropdown from '@/components/Dropdown';
+import { Menu, MenuItem } from '@/components/Menu';
+import Dialog from '@/components/Dialog';
+import Message from '@/components/Message';
+import Input from '@/components/Input';
+import Button from '@/components/Button';
+import Loading from '@/components/Loading';
+
+import getRandomHuaji from 'utils/getRandomHuaji';
+import readDiskFile from 'utils/readDiskFile';
+import fetch from 'utils/fetch';
+
+import Expression from './Expression';
+import CodeEditor from './CodeEditor';
+import config from '../../../../../config/client';
+
+const xss = require('utils/xss');
+const Url = require('utils/url');
+
+class ChatInput extends Component {
+    static propTypes = {
+        isLogin: PropTypes.bool.isRequired,
+        focus: PropTypes.string,
+        user: ImmutablePropTypes.map,
+        connect: PropTypes.bool,
+    }
+    static handleLogin() {
+        action.showLoginDialog();
+    }
+    static insertAtCursor(input, value) {
+        if (document.selection) {
+            input.focus();
+            const sel = document.selection.createRange();
+            sel.text = value;
+            sel.select();
+        } else if (input.selectionStart || input.selectionStart === '0') {
+            const startPos = input.selectionStart;
+            const endPos = input.selectionEnd;
+            const restoreTop = input.scrollTop;
+            input.value = input.value.substring(0, startPos) + value + input.value.substring(endPos, input.value.length);
+            if (restoreTop > 0) {
+                input.scrollTop = restoreTop;
+            }
+            input.focus();
+            input.selectionStart = startPos + value.length;
+            input.selectionEnd = startPos + value.length;
+        } else {
+            input.value += value;
+            input.focus();
+        }
+    }
+    static compressImage(image, mimeType, quality = 1) {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(image, 0, 0);
+            canvas.toBlob(resolve, mimeType, quality);
+        });
+    }
+    constructor(...args) {
+        super(...args);
+        this.state = {
+            expressionVisible: false,
+            codeInputVisible: false,
+            expressionSearchVisible: false,
+            expressionSearchLoading: false,
+            expressionSearchResults: [],
+        };
+        this.lockEnter = false;
+    }
+    @autobind
+    handleVisibleChange(visible) {
+        this.setState({
+            expressionVisible: visible,
+        });
+    }
+    @autobind
+    handleFeatureMenuClick({ key }) {
+        switch (key) {
+        case 'image': {
+            this.handleSelectFile();
+            break;
+        }
+        case 'huaji': {
+            this.sendHuaji();
+            break;
+        }
+        case 'code': {
+            this.setState({
+                codeInputVisible: true,
+            });
+            break;
+        }
+        case 'expression': {
+            this.setState({
+                expressionSearchVisible: true,
+            });
+            break;
+        }
+        default:
+        }
+    }
+    @autobind
+    handleCodeEditorClose() {
+        this.setState({
+            codeInputVisible: false,
+        });
+    }
+    @autobind
+    closeExpressionSearch() {
+        this.setState({
+            expressionSearchVisible: false,
+        });
+    }
+    @autobind
+    handleSendCode() {
+        if (!this.props.connect) {
+            return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+        }
+
+        const language = this.codeEditor.getLanguage();
+        const rawCode = this.codeEditor.getValue();
+        if (rawCode === '') {
+            return Message.warning('Inserire il codice da inviare');
+        }
+
+        const code = `@language=${language}@${rawCode}`;
+        const id = this.addSelfMessage('code', code);
+        this.sendMessage(id, 'code', code);
+        this.handleCodeEditorClose();
+    }
+    @autobind
+    handleInputKeyDown(e) {
+        const expressionShortcut = {
+            1: '#(Sinister)',
+            2: '#(good)',
+            3: '#(funny)',
+            4: '#(Ha ha)',
+            5: '#(Verdict)',
+            6: '#(laugh)',
+            7: '#(tongue)',
+            '¡ ': '#(Sinister)',
+            TM: '#(Well)',
+            '£': '#(funny)',
+            '¢': '#(Oh)',
+            '∞': '#(grievance)',
+            '§': '#(laughing)',
+            '¶': '#(Tongue)',
+        };
+        if (e.key === 'Tab') {
+            e.preventDefault();
+        } else if (e.key === 'Enter' && !this.lockEnter) {
+            this.sendTextMessage();
+        } else if (e.key === 's' || e.key === 'ß') {
+            if (e.altKey) {
+                this.sendHuaji();
+                e.preventDefault();
+            }
+        } else if (e.key === 'd' || e.key === '∂') {
+            if (e.altKey) {
+                this.setState({
+                    expressionSearchVisible: true,
+                });
+            }
+        } else if (expressionShortcut[e.key]) {
+            if (e.altKey) {
+                if (!this.props.connect) {
+                    return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+                }
+                const id = this.addSelfMessage('text', expressionShortcut[e.key]);
+                this.sendMessage(id, 'text', expressionShortcut[e.key]);
+                e.preventDefault();
+            }
+        }
+    }
+    @autobind
+    sendTextMessage() {
+        if (!this.props.connect) {
+            return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+        }
+
+        const message = this.message.value.trim();
+        if (message.length === 0) {
+            return;
+        }
+
+        const id = this.addSelfMessage('text', xss(message));
+        this.sendMessage(id, 'text', message);
+        this.message.value = '';
+    }
+    addSelfMessage(type, content) {
+        const { user, focus } = this.props;
+        const _id = focus + Date.now();
+        const message = {
+            _id,
+            type,
+            content,
+            createTime: Date.now(),
+            from: {
+                _id: user.get('_id'),
+                username: user.get('username'),
+                avatar: user.get('avatar'),
+            },
+            loading: true,
+        };
+
+        if (type === 'image') {
+            message.percent = 0;
+        }
+        action.addLinkmanMessage(focus, message);
+
+        return _id;
+    }
+    @autobind
+    sendMessage(localId, type, content) {
+        const { focus } = this.props;
+        socket.emit('sendMessage', {
+            to: focus,
+            type,
+            content,
+        }, (res) => {
+            if (typeof res === 'string') {
+                Message.error(res);
+            } else {
+                res.loading = false;
+                action.updateSelfMessage(focus, localId, res);
+            }
+        });
+    }
+    @autobind
+    handleSelectExpression(expression) {
+        this.handleVisibleChange(false);
+        ChatInput.insertAtCursor(this.message, `#(${expression})`);
+    }
+    sendImageMessage(image) {
+        if (image.length > config.maxImageSize) {
+            return Message.warning('L\'immagine da inviare è troppo grande', 3);
+        }
+
+        const { user, focus } = this.props;
+        const ext = image.type.split('/').pop().toLowerCase();
+        const url = URL.createObjectURL(image.result);
+
+        const img = new Image();
+        img.onload = () => {
+            const id = this.addSelfMessage('image', `${url}?width=${img.width}&height=${img.height}`);
+            socket.emit('uploadToken', {}, (res) => {
+                if (typeof res === 'string') {
+                    Message.error(res);
+                } else {
+                    const result = qiniu.upload(image.result, `ImageMessage/${user.get('_id')}_${Date.now()}.${ext}`, res.token, { useCdnDomain: true }, {});
+                    result.subscribe({
+                        next(info) {
+                            action.updateSelfMessage(focus, id, { percent: info.total.percent });
+                        },
+                        error(err) {
+                            console.error(err);
+                            Message.error('Impossibile caricare l\'immagine');
+                        },
+                        complete: (info) => {
+                            const imageUrl = `${res.urlPrefix + info.key}?width=${img.width}&height=${img.height}`;
+                            this.sendMessage(id, 'image', imageUrl);
+                        },
+                    });
+                }
+            });
+        };
+        img.src = url;
+    }
+    @autobind
+    async handleSelectFile() {
+        if (!this.props.connect) {
+            return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+        }
+        const image = await readDiskFile('blob', 'image/png,image/jpeg,image/gif');
+        this.sendImageMessage(image);
+    }
+    @autobind
+    async sendHuaji() {
+        const huaji = getRandomHuaji();
+        const id = this.addSelfMessage('image', huaji);
+        this.sendMessage(id, 'image', huaji);
+    }
+    @autobind
+    handlePaste(e) {
+        if (!this.props.connect) {
+            e.preventDefault();
+            return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+        }
+        const { items } = (e.clipboardData || e.originalEvent.clipboardData);
+        const { types } = (e.clipboardData || e.originalEvent.clipboardData);
+
+        // Se includi il contenuto del file
+        if (types.indexOf('Files') > -1) {
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
+                if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file) {
+                        const that = this;
+                        const reader = new FileReader();
+                        reader.onloadend = function () {
+                            const image = new Image();
+                            image.onload = async () => {
+                                const imageBlob = await ChatInput.compressImage(image, file.type, 0.8);
+                                that.sendImageMessage({
+                                    filename: file.name,
+                                    ext: imageBlob.type.split('/').pop(),
+                                    length: imageBlob.size,
+                                    type: imageBlob.type,
+                                    result: imageBlob,
+                                });
+                            };
+                            image.src = this.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
+            }
+            e.preventDefault();
+        }
+    }
+    @autobind
+    handleIMEStart() {
+        this.lockEnter = true;
+    }
+    @autobind
+    handleIMEEnd() {
+        this.lockEnter = false;
+    }
+    async searchExpression(keywords) {
+        if (keywords) {
+            this.setState({
+                expressionSearchLoading: true,
+            });
+            const [err, result] = await fetch('searchExpression', { keywords });
+            if (!err) {
+                this.setState({
+                    expressionSearchResults: result,
+                });
+            }
+            this.setState({
+                expressionSearchLoading: false,
+            });
+        }
+    }
+    @autobind
+    handleSearchExpressionButtonClick() {
+        const keywords = this.expressionSearchKeyword.getValue();
+        this.searchExpression(keywords);
+    }
+    @autobind
+    handleSearchExpressionInputEnter(keywords) {
+        this.searchExpression(keywords);
+    }
+    @autobind
+    handleClickExpression(e) {
+        const $target = e.target;
+        if ($target.tagName === 'IMG') {
+            const url = Url.addParam($target.src, {
+                width: $target.naturalWidth,
+                height: $target.naturalHeight,
+            });
+            const id = this.addSelfMessage('image', url);
+            this.sendMessage(id, 'image', url);
+            this.setState({
+                expressionSearchVisible: false,
+            });
+        }
+    }
+    expressionDropdown = (
+        <div className="expression-dropdown">
+            <Expression onSelect={this.handleSelectExpression} />
+        </div>
+    )
+    featureDropdown = (
+        <div className="feature-dropdown">
+            <Menu onClick={this.handleFeatureMenuClick}>
+                <MenuItem key="expression">Invia emoticon</MenuItem>
+                <MenuItem key="image">Invia foto</MenuItem>
+                <MenuItem key="code">Invia il codice</MenuItem>
+            </Menu>
+        </div>
+    )
+    nOSDropdown = (
+        <div className="feature-dropdown">
+            <Menu onClick={this.handleFeatureMenuClick}>
+                <MenuItem key="neo">Invia NEO</MenuItem>
+                <MenuItem key="gas">Invia Gas</MenuItem>
+            </Menu>
+        </div>
+    )
+    render() {
+        const { expressionVisible, codeInputVisible, expressionSearchVisible, expressionSearchResults, expressionSearchLoading } = this.state;
+        const { isLogin } = this.props;
+
+        if (isLogin) {
+            return (
+                <div className="chat-chatInput">
+                    <Dropdown
+                        trigger={['click']}
+                        visible={expressionVisible}
+                        onVisibleChange={this.handleVisibleChange}
+                        overlay={this.expressionDropdown}
+                        animation="slide-up"
+                        placement="topLeft"
+                    >
+                        <IconButton className="expression" width={44} height={44} icon="expression" iconSize={32} />
+                    </Dropdown>
+                    <Dropdown
+                        trigger={['click']}
+                        overlay={this.featureDropdown}
+                        animation="slide-up"
+                        placement="topLeft"
+                    >
+                        <IconButton className="feature" width={44} height={44} icon="feature" iconSize={32} />
+                    </Dropdown>
+                    <Dialog
+                        className="codeEditor-dialog"
+                        title="Si prega di inserire il codice da inviare"
+                        visible={codeInputVisible}
+                        onClose={this.handleCodeEditorClose}
+                    >
+                        <div className="container">
+                            <CodeEditor ref={i => this.codeEditor = i} />
+                            <button className="codeEditor-button" onClick={this.handleSendCode}>Inviare</button>
+                        </div>
+                    </Dialog>
+                    <Dialog
+                        className="expressionSearch-dialog"
+                        title="Cerca emoticon"
+                        visible={expressionSearchVisible}
+                        onClose={this.closeExpressionSearch}
+                    >
+                        <div className="container">
+                            <div className="input-container">
+                                <Input ref={i => this.expressionSearchKeyword = i} onEnter={this.handleSearchExpressionInputEnter} />
+                                <Button onClick={this.handleSearchExpressionButtonClick}>ricerca</Button>
+                            </div>
+                            <div className={`loading ${expressionSearchLoading ? 'show' : 'hide'}`}>
+                                <Loading type="spinningBubbles" color="#4A90E2" height={100} width={100} />
+                            </div>
+                            <div className="expression-list" onClick={this.handleClickExpression}>
+                                {
+
+                                    expressionSearchResults.map((image, i) => (
+                                        <img src={image.url} key={i + image.id} />
+                                    ))
+                                }
+                            </div>
+                        </div>
+                    </Dialog>
+                    <input
+                        type="text"
+                        placeholder=""
+                        maxLength="2048"
+                        ref={i => this.message = i}
+                        onKeyDown={this.handleInputKeyDown}
+                        onPaste={this.handlePaste}
+                        onCompositionStart={this.handleIMEStart}
+                        onCompositionEnd={this.handleIMEEnd}
+                    />
+                    <IconButton className="send" width={44} height={44} icon="send" iconSize={32} onClick={this.sendTextMessage} />
+                </div>
+            );
+        }
+        return (
+            <div className="chat-chatInput guest">
+                <p>effettuare il <b onClick={ChatInput.handleLogin}>Login</b> per entrare nella chat</p>
+            </div>
+        );
+    }
+}
+
+export default connect(state => ({
+    isLogin: !!state.getIn(['user', '_id']),
+    connect: state.get('connect'),
+    focus: state.get('focus'),
+    user: state.get('user'),
+}))(ChatInput);
+
+/* { url: 'https://media0.giphy.com/media/BlVnrxJgTGsUw/giphy.gif',
+    width: '250',
+    height: '303',
+    id: 'BlVnrxJgTGsUw',
+    title: 'happy george costanza GIF' } */

@@ -124,6 +124,25 @@ module.exports = {
         assert(group, 'Il gruppo non esiste');
         return getGroupOnlineMembers(group);
     },
+    async getGroupInfos(ctx) {
+        const { groupId } = ctx.data;
+        assert(isValid(groupId), 'ID di gruppo non valido');
+
+        const group = await Group.findOne({
+            _id: groupId,
+        });
+        assert(group, 'Il gruppo non esiste');
+
+        return {
+            _id: group._id,
+            name: group.name,
+            avatar: group.avatar,
+            createTime: group.createTime,
+            creator: group.creator,
+            nosAddress: group.nosAddress,
+        };
+    },
+
     async getDefaultGroupOnlineMembers() {
         const group = await Group.findOne({ isDefault: true });
         assert(group, 'Il gruppo non esiste');
