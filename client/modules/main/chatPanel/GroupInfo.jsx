@@ -50,9 +50,10 @@ class GroupInfo extends Component {
                             </div>
                             <div className="info">
                                 <div>
-                                    <p>membri:</p>
+                                    <p>Members:</p>
                                     <div>{groupInfo.members}</div>
                                 </div>
+                                {groupInfo.nosAddress && <p> nOS Enabled </p>}
                                 {
                                     linkmans.find(l => l.get('_id') === groupInfo._id) ?
                                         <Button onClick={this.handleFocusGroup}>Invia un messaggio</Button>

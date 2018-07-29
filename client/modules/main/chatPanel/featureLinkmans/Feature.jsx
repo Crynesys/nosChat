@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React, { Component } from 'react';
 import autobind from 'autobind-decorator';
 
@@ -14,6 +13,7 @@ import action from '@/state/action';
 import fetch from 'utils/fetch';
 import GroupInfo from '../GroupInfo';
 import UserInfo from '../UserInfo';
+import './Feature.less';
 
 class Feature extends Component {
     constructor(...args) {
@@ -85,7 +85,10 @@ class Feature extends Component {
     @autobind
     handleCreateGroup() {
         const name = this.groupName.getValue();
-        socket.emit('createGroup', { name }, (res) => {
+        const address = ('NOS' in window) ? this.groupAddress.getValue() : null;
+        console.log(this.groupDescription);
+        const description = this.groupDescription.getValue();
+        socket.emit('createGroup', { name, address, description }, (res) => {
             if (typeof res === 'string') {
                 Message.error(res);
             } else {
@@ -93,7 +96,7 @@ class Feature extends Component {
                 action.addLinkman(res, true);
                 this.groupName.clear();
                 this.closeCreateGroupDialog();
-                Message.success('Gruppo creato con successo');
+                Message.success('Group Created');
             }
         });
     }
@@ -166,13 +169,21 @@ class Feature extends Component {
     renderSearchUsers(count = Infinity) {
         const { users } = this.state.searchResult;
         count = Math.min(count, users.length);
+        const nOsTag = (
+            <ul className="tags">
+                <li><a href="/#">nOS</a></li>
 
+            </ul>);
         const usersDom = [];
         for (let i = 0; i < count; i++) {
+            console.log(users[i]);
             usersDom.push((
                 <div key={users[i]._id} onClick={this.openUserInfoDialog.bind(this, users[i])}>
                     <Avatar size={40} src={users[i].avatar} />
-                    <p>{users[i].username}</p>
+                    <div>
+                        <p>{users[i].username}</p>
+                        {users[i].neoAddress && nOsTag}
+                    </div>
                 </div>
             ));
         }
@@ -182,15 +193,23 @@ class Feature extends Component {
     renderSearchGroups(count = Infinity) {
         const { groups } = this.state.searchResult;
         count = Math.min(count, groups.length);
+        const nOsTag = (
+            <ul className="tags">
+                <li><a href="/#">nOS</a></li>
 
+            </ul>);
+        // <span tooltip="Slide to the right" flow="right">Right</span>
         const groupsDom = [];
         for (let i = 0; i < count; i++) {
             groupsDom.push((
                 <div key={groups[i]._id} onClick={this.openGroupInfoDialog.bind(this, groups[i])}>
                     <Avatar size={40} src={groups[i].avatar} />
                     <div>
-                        <p>{groups[i].name}</p>
-                        <p>{groups[i].members} membri nel gruppo</p>
+                        {groups[i].nosAddress ?
+                            <p tooltip="nOS Enabled" >{groups[i].name}</p> :
+                            <p>{groups[i].name}</p>}
+                        <p>{groups[i].members} users in the group</p>
+                        {groups[i].nosAddress && nOsTag}
                     </div>
                 </div>
             ));
@@ -210,25 +229,35 @@ class Feature extends Component {
         } = this.state;
 
         const nOSExists = !!window.NOS && !!window.NOS.V1;
+        const groups = (
+            <div className="all-list">
+                <div style={{ display: searchResult.groups.length > 0 ? 'block' : 'none' }}>
+                    <p>groups</p>
+                    <div className="group-list">{this.renderSearchGroups()}</div>
+                </div>
+            </div>);
+
         return (
             <div className="chatPanel-feature">
-                <input className={showSearchResult ? 'focus' : 'blur'} type="text" placeholder="Cerca gruppi / utenti" autoComplete="false" ref={i => this.searchInput = i} onFocus={this.handleFocus} onKeyDown={this.handleInputKeyDown} />
+                <input className={showSearchResult ? 'focus' : 'blur'} type="text" placeholder="Search groups / users" autoComplete="false" ref={i => this.searchInput = i} onFocus={this.handleFocus} onKeyDown={this.handleInputKeyDown} />
                 <i className="iconfont icon-search" />
                 <IconButton style={{ display: showAddButton ? 'block' : 'none' }} width={40} height={40} icon="add" iconSize={38} onClick={this.showCreateGroupDialog} />
-                <Dialog className="create-group-dialog" title="Crea un gruppo" visible={showCreateGroupDialog} onClose={this.closeCreateGroupDialog}>
+                <Dialog className="create-group-dialog" title="Create a group" visible={showCreateGroupDialog} onClose={this.closeCreateGroupDialog}>
                     <div className="content">
-                        <h3>inserisci il nome del gruppo</h3>
+                        <h3>Group name</h3>
                         <Input ref={i => this.groupName = i} />
+                        <h3>Group description</h3>
+                        <Input ref={i => this.groupDescription = i} />
                         {nOSExists &&
                             <React.Fragment>
                                 <br />
-                                <h3>inserisci l'indirizzo del gruppo</h3>
+                                <h3>NEO Address for nOS actions</h3>
                                 <Input ref={i => this.groupAddress = i} />
                                 <br />
                                 <FAButton style={{ display: showAddButton ? 'block' : 'none' }} width={40} height={40} icon="fa-book" iconSize={38} onClick={this.showCreateGroupDialog} />
                             </React.Fragment>
                         }
-                        <button onClick={this.handleCreateGroup}>Crea</button>
+                        <button onClick={this.handleCreateGroup}>Create</button>
                     </div>
                 </Dialog>
                 <Tabs
@@ -239,45 +268,45 @@ class Feature extends Component {
                     renderTabBar={() => <ScrollableInkTabBar />}
                     renderTabContent={() => <TabContent />}
                 >
-                    <TabPane tab="completo" key="all">
+                    <TabPane tab="All" key="all">
                         {
                             searchResult.users.length === 0 && searchResult.groups.length === 0 ?
-                                <p className="none">Nessun risultato, prova un'altra parola chiave</p>
+                                <p className="none">No results</p>
                                 :
                                 (
                                     <div className="all-list">
                                         <div style={{ display: searchResult.users.length > 0 ? 'block' : 'none' }}>
-                                            <p>utente</p>
+                                            <p>Users</p>
                                             <div className="user-list">{this.renderSearchUsers(3)}</div>
                                             <div className="more" style={{ display: searchResult.users.length > 3 ? 'block' : 'none' }}>
-                                                <span onClick={this.switchTabToUser}>Vedi di più</span>
+                                                <span onClick={this.switchTabToUser}>See more</span>
                                             </div>
                                         </div>
                                         <div style={{ display: searchResult.groups.length > 0 ? 'block' : 'none' }}>
-                                            <p>gruppi</p>
+                                            <p>Groups</p>
                                             <div className="group-list">{this.renderSearchGroups(3)}</div>
                                             <div className="more" style={{ display: searchResult.groups.length > 3 ? 'block' : 'none' }}>
-                                                <span onClick={this.switchTabToGroup}>Vedi di più</span>
+                                                <span onClick={this.switchTabToGroup}>See more</span>
                                             </div>
                                         </div>
                                     </div>
                                 )
                         }
                     </TabPane>
-                    <TabPane tab="utente" key="user">
+                    <TabPane tab="Users" key="user">
                         {
                             searchResult.users.length === 0 ?
-                                <p className="none">Nessun risultato, inserire altre parole chiave</p>
+                                <p className="none">No results</p>
                                 :
                                 <div className="user-list only">{this.renderSearchUsers()}</div>
                         }
                     </TabPane>
-                    <TabPane tab="gruppi" key="group">
+                    <TabPane tab="Groups" key="group">
                         {
+
                             searchResult.groups.length === 0 ?
-                                <p className="none">Nessun risultato, inserire altre parole chiave</p>
-                                :
-                                <div className="group-list only">{this.renderSearchGroups()}</div>
+                                <p className="none">No results</p>
+                                : groups
                         }
                     </TabPane>
                 </Tabs>

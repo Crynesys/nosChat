@@ -11,7 +11,7 @@ const configNotEmpty = config.qiniuAccessKey !== '' && config.qiniuSecretKey !==
 
 module.exports = {
     async uploadToken() {
-        assert(configNotEmpty, 'Attenzione dati di accesso qiniu mancanti');
+        assert(configNotEmpty, 'No quiniu data');
 
 
         const putPolicy = new qiniu.rs.PutPolicy(options);

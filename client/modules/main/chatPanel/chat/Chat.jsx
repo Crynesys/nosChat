@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React, { Component } from 'react';
 import autobind from 'autobind-decorator';
 import { connect } from 'react-redux';
@@ -37,6 +36,8 @@ class Chat extends Component {
         name: PropTypes.string,
         type: PropTypes.string,
         nosAddress: PropTypes.string,
+        groupDescription: PropTypes.string,
+        neoAddress: PropTypes.string,
     }
     constructor(...args) {
         super(...args);
@@ -53,18 +54,19 @@ class Chat extends Component {
     nOSDropdown = (
         <div className="feature-dropdown">
             <Menu onClick={this.handleFeatureMenuClick}>
-                <MenuItem key="neo">Invia NEO</MenuItem>
-                <MenuItem key="gas">Invia Gas</MenuItem>
+                <MenuItem key="neo">Send NEO</MenuItem>
+                <MenuItem key="gas">Send Gas</MenuItem>
             </Menu>
         </div>
     )
+
     @autobind
     handleFeatureMenuClick({ key }) {
         // const userInfo = this.state;
         const nos = window.NOS.V1;
         let asset = null;
         const amount = this.assetQty.getValue();
-        const receiver = 'AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU';// this.state.nosAddress;
+        const receiver = this.state.nosAddress;
         switch (key) {
         case 'neo': {
             const neo = 'c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b';
@@ -80,7 +82,7 @@ class Chat extends Component {
         }
         console.log(`asset: ${asset} amount: ${amount} receiver: ${receiver}`);
         nos.send({ asset, amount, receiver })
-            .then(txid => SWMessage.success(`${amount} NEO inviati, transazione ${txid}`, 3))
+            .then(txid => SWMessage.success(`${amount} ${key} inviati, transazione ${txid}`, 3))
             .catch((err) => {
                 console.log(err.message);
                 console.log(err);
@@ -146,9 +148,11 @@ class Chat extends Component {
             action.setGroupMembers(focus, result);
         }
         if (result2) {
+            // alert('Group Address :' + result2.nosAddress)
             this.setState({
                 groupInfoDialog: true,
                 nosAddress: result2.nosAddress,
+                groupDescription: result2.announcement,
             });
         } else {
             this.setState({
@@ -180,7 +184,7 @@ class Chat extends Component {
         const { userId, focus } = this.props;
         const image = await readDiskFile('blob', 'image/png,image/jpeg,image/gif');
         if (image.length > config.maxImageSize) {
-            return Message.error('Impossibile impostare il ritratto di gruppo, selezionare un\'immagine di dimensioni inferiori a 1 MB');
+            return Message.error('Image for Group Avatar must be less than 1 MB');
         }
 
         const [err, tokenRes] = await fetch('uploadToken', {});
@@ -189,14 +193,14 @@ class Chat extends Component {
             result.subscribe({
                 error(e) {
                     console.error(e);
-                    Message.error('Impossibile caricare foto di gruppo');
+                    Message.error('Impossible load image');
                 },
                 async complete(info) {
                     const imageUrl = `${tokenRes.urlPrefix + info.key}`;
                     const [changeGroupAvatarError] = await fetch('changeGroupAvatar', { groupId: focus, avatar: imageUrl });
                     if (!changeGroupAvatarError) {
                         action.setGroupAvatar(focus, URL.createObjectURL(image.result));
-                        Message.success('Modificata la foto di gruppo con successo');
+                        Message.success('Group Avatar Updated ');
                     }
                 },
             });
@@ -209,7 +213,7 @@ class Chat extends Component {
         if (!err) {
             this.closeGroupInfo();
             action.removeLinkman(focus);
-            Message.success('Uscito dal gruppo con successo');
+            Message.success('You leaved the group');
         }
     }
     renderMembers() {
@@ -232,31 +236,37 @@ class Chat extends Component {
 
 
     render() {
-        const { groupInfoDialog, userInfoDialog, userInfo, nosAddress } = this.state;
-        const { userId, creator, avatar, type, to, name } = this.props;
-        const showNosData = ('NOS' in window) && nosAddress;
+        const { groupInfoDialog, userInfoDialog, userInfo, nosAddress, groupDescription } = this.state;
+        const { userId, creator, avatar, type, to, name, neoAddress } = this.props;
+        const showNosData = ('NOS' in window) && (nosAddress != null);//
+        // alert('chat.jsx : ' + neoAddress+','+nosAddress+' ');
+        // alert(showNosData);
         return (
             <div className="module-main-chat">
-                <HeaderBar onShowInfo={type === 'group' ? this.groupInfoDialog : this.showUserInfoDialog.bind(this, { _id: to, username: name, avatar })} />
+                <HeaderBar onShowInfo={type === 'group' ? this.groupInfoDialog : this.showUserInfoDialog.bind(this, { _id: to, username: name, avatar, neoAddress })} />
                 <MessageList showUserInfoDialog={this.showUserInfoDialog} />
                 <ChatInput />
                 <div className={`float-panel info ${groupInfoDialog ? 'show' : 'hide'}`}>
-                    <p>Informazioni sul gruppo</p>
+                    <p>Group Informations</p>
                     <div>
                         {/* <div className="avatar" style={{ display: !!userId && userId === creator ? 'block' : 'none' }}>
                             <p>Foto del Gruppo</p>
                             <img src={avatar} onClick={this.changeGroupAvatar} />
                         </div> */}
                         <div className="feature" style={{ display: !!userId && userId === creator ? 'none' : 'block' }}>
-                            <p>funzione</p>
-                            <Button type="danger" onClick={this.leaveGroup}>Lascia il gruppo</Button>
+                            <p>Actions</p>
+                            <Button type="danger" onClick={this.leaveGroup}>Exit</Button>
+                        </div>
+                        <div className="feature" style={{ display: !!userId && userId === creator ? 'none' : 'block' }}>
+                            <p>Description</p>
+                            <p>{groupDescription}</p>
                         </div>
                         {showNosData &&
                             <div className="feature" style={{ display: 'block' }}>
-                                <p>Partecipa al crowdfunding</p>
+                                <p>Send to the group</p>
                                 <p> Address : {nosAddress} </p>
                                 <br />
-                                <p> quantità :  </p>
+                                <p> amount :  </p>
                                 <Input ref={i => this.assetQty = i} />
                                 <br />
 
@@ -273,12 +283,12 @@ class Chat extends Component {
                         }
 
                         <div className="online-members">
-                            <p>Persone in linea</p>
+                            <p>Members on-line</p>
                             <div>{this.renderMembers()}</div>
                         </div>
                     </div>
                 </div>
-                { userInfoDialog ? <UserInfo visible={userInfoDialog} userInfo={userInfo} onClose={this.closeUserInfoDialog} /> : ''}
+                { userInfoDialog ? <UserInfo visible={userInfoDialog} userInfo={userInfo} onClose={this.closeUserInfoDialog} nosAddress={nosAddress} /> : ''}
             </div>
         );
     }
@@ -298,7 +308,7 @@ export default connect((state) => {
 
     const focus = state.get('focus');
     const linkman = state.getIn(['user', 'linkmans']).find(g => g.get('_id') === focus);
-
+    // alert('Linkman : '+linkman.get('neoAddress') + " ," + linkman.get('name'));
     return {
         userId: state.getIn(['user', '_id']),
         focus,
@@ -308,6 +318,6 @@ export default connect((state) => {
         name: linkman.get('name'),
         avatar: linkman.get('avatar'),
         members: linkman.get('members') || immutable.fromJS([]),
-        nosAddress: linkman.get('nosAddress'),
+        neoAddress: linkman.get('neoAddress'),
     };
 })(Chat);

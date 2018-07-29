@@ -5,6 +5,7 @@ const jwt = require('jwt-simple');
 const { isValid } = require('mongoose').Types.ObjectId;
 
 const User = require('../models/user');
+const Transaction = require('../models/transaction');
 const Group = require('../models/group');
 const Socket = require('../models/socket');
 const Friend = require('../models/friend');
@@ -32,14 +33,14 @@ module.exports = {
             username, password, neoAddress, os, browser, environment,
 
         } = ctx.data;
-        assert(username, 'Il nome utente non può essere vuoto');
-        assert(password, 'La password non può essere vuota');
+        assert(username, 'User name can not be void');
+        assert(password, 'The user password can not be void');
 
         const user = await User.findOne({ username });
-        assert(!user, 'Il nome utente esiste già');
+        assert(!user, 'User name already exists');
 
         const defaultGroup = await Group.findOne({ isDefault: true });
-        assert(defaultGroup, 'Il gruppo predefinito non esiste');
+        assert(defaultGroup, 'Default group does not exists');
 
         const salt = await bcrypt.genSalt$(saltRounds);
         const hash = await bcrypt.hash$(password, salt);
@@ -56,7 +57,7 @@ module.exports = {
             });
         } catch (err) {
             if (err.name === 'ValidationError') {
-                return 'Il nome utente contiene caratteri non supportati o la lunghezza supera il limite';
+                return 'User name is not valid or too long';
             }
             throw err;
         }
@@ -91,18 +92,20 @@ module.exports = {
         };
     },
     async login(ctx) {
+        assert(!ctx.socket.user, 'You are already in');
+
         const {
             username, password, os, browser, environment,
         } = ctx.data;
-        assert(username, 'Il nome utente non può essere vuoto');
-        assert(password, 'La password non può essere vuota');
+        assert(username, 'User name can not be void');
+        assert(password, 'The user password can not be void');
 
         const user = await User.findOne({ username });
-        assert(user, 'L\'utente non esiste ');
+        assert(user, 'The user does not exist ');
 
 
         const isPasswordCorrect = bcrypt.compareSync(password, user.password);
-        assert(isPasswordCorrect, 'Password errata');
+        assert(isPasswordCorrect, 'Wrong Password');
 
         user.lastLoginTime = Date.now();
         await user.save();
@@ -117,7 +120,7 @@ module.exports = {
 
         const friends = await Friend
             .find({ from: user._id })
-            .populate('to', { avatar: 1, username: 1 });
+            .populate('to', { avatar: 1, username: 1, neoAddress: 1 });
 
         const token = generateToken(user._id, environment);
 
@@ -140,23 +143,25 @@ module.exports = {
         };
     },
     async loginByToken(ctx) {
+        assert(!ctx.socket.user, 'You are already in');
+
         const {
             token, os, browser, environment,
         } = ctx.data;
-        assert(token, 'Il token non può essere vuoto');
+        assert(token, 'Token can not be void');
 
         let payload = null;
         try {
             payload = jwt.decode(token, config.jwtSecret);
         } catch (err) {
-            return 'Token illegale';
+            return 'Illegal Token';
         }
 
-        assert(Date.now() < payload.expires, 'Token scaduto');
-        assert.equal(environment, payload.environment, 'Accesso illegale');
+        assert(Date.now() < payload.expires, 'Token expaired');
+        assert.equal(environment, payload.environment, 'Illegal Access');
 
-        const user = await User.findOne({ _id: payload.user }, { _id: 1, avatar: 1, username: 1 });
-        assert(user, 'L\'utente non esiste ');
+        const user = await User.findOne({ _id: payload.user }, { _id: 1, avatar: 1, username: 1, neoAddress: 1 });
+        assert(user, 'The user does not exist ');
 
 
         user.lastLoginTime = Date.now();
@@ -170,8 +175,8 @@ module.exports = {
 
         const friends = await Friend
             .find({ from: user._id })
-            .populate('to', { avatar: 1, username: 1 });
-
+            .populate('to', { avatar: 1, username: 1, neoAddress: 1 });
+        // console.log(friends);
         ctx.socket.user = user._id;
         await Socket.update({ id: ctx.socket.id }, {
             user: user._id,
@@ -186,6 +191,7 @@ module.exports = {
             username: user.username,
             groups,
             friends,
+            neoAddress: user.neoAddress,
         };
     },
     async guest(ctx) {
@@ -206,14 +212,14 @@ module.exports = {
                 { type: 1, content: 1, from: 1, createTime: 1 },
                 { sort: { createTime: -1 }, limit: 15 },
             )
-            .populate('from', { username: 1, avatar: 1 });
+            .populate('from', { username: 1, avatar: 1, neoAddress: 1 });
         messages.reverse();
 
         return Object.assign({ messages }, group.toObject());
     },
     async changeAvatar(ctx) {
         const { avatar } = ctx.data;
-        assert(avatar, 'Il nuovo collegamento avatar non può essere vuoto');
+        assert(avatar, 'The avatar can not be void');
 
         await User.update({ _id: ctx.socket.user }, {
             avatar,
@@ -223,14 +229,14 @@ module.exports = {
     },
     async addFriend(ctx) {
         const { userId } = ctx.data;
-        assert(isValid(userId), 'ID utente non valido');
+        assert(isValid(userId), 'User ID not valid');
 
         const user = await User.findOne({ _id: userId });
-        assert(user, 'Impossibile aggiungere l\'amico, l\'utente non esiste');
+        assert(user, 'User to add does not exist');
 
 
         const friend = await Friend.find({ from: ctx.socket.user, to: user._id });
-        assert(friend.length === 0, 'Sei già amico');
+        assert(friend.length === 0, 'Friendship already exists');
 
         const newFriend = await Friend.create({
             from: ctx.socket.user,
@@ -245,14 +251,45 @@ module.exports = {
             to: newFriend.to,
         };
     },
-    async deleteFriend(ctx) {
+    async getUserInfos(ctx) {
+        // userId
         const { userId } = ctx.data;
-        assert(isValid(userId), 'ID utente non valido');
+        assert(isValid(userId), 'User ID not valid');
 
         const user = await User.findOne({ _id: userId });
-        assert(user, 'L\'utente non esite');
+        assert(user, 'The user does not exist');
+        return {
+            _id: user._id,
+            avatar: user.avatar,
+            username: user.username,
+            neoAddress: user.neoAddress,
+        };
+    },
+    async deleteFriend(ctx) {
+        const { userId } = ctx.data;
+        assert(isValid(userId), 'User ID not valid');
+
+        const user = await User.findOne({ _id: userId });
+        assert(user, 'The user does not exist');
 
         await Friend.remove({ from: ctx.socket.user, to: user._id });
         return {};
     },
+
+    async saveTransaction(ctx) {
+        const { amount, asset, txid, receiver } = ctx.data;
+        const newTx = await Transaction.create({
+            from: ctx.socket.user,
+            amount,
+            asset,
+            txid,
+            neoAddress: receiver,
+        });
+
+        return {
+            amount: newTx.amount, asset: newTx.asset, txid: newTx.txid, receiver: newTx.neoAddress,
+        };
+    },
+
+
 };

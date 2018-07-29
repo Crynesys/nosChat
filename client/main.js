@@ -1,11 +1,9 @@
-/* eslint-disable */
 import 'regenerator-runtime/runtime';
 
 import React from 'react';
 import ReactDom from 'react-dom';
 import { Provider } from 'react-redux';
 import platform from 'platform';
-import injectSheet from 'react-jss';
 
 
 import fetch from 'utils/fetch';
@@ -14,7 +12,6 @@ import store from './state/store';
 import action from './state/action';
 import socket from './socket';
 import notification from '../utils/notification';
-import sound from '../utils/sound';
 import getFriendId from '../utils/getFriendId';
 import convertRobot10Message from '../utils/convertRobot10Message';
 
@@ -60,11 +57,13 @@ socket.on('connect', async () => {
 socket.on('disconnect', () => {
     action.disconnect();
 });
+
 socket.on('message', (message) => {
     // robot10
     convertRobot10Message(message);
 
     const state = store.getState();
+    const isSelfMessage = message.from._id === state.getIn(['user', '_id']);
     const linkman = state.getIn(['user', 'linkmans']).find(l => l.get('_id') === message.to);
     let title = '';
     if (linkman) {
@@ -75,6 +74,10 @@ socket.on('message', (message) => {
             title = `${message.from.username}  dice:`;
         }
     } else {
+        // The contact does not exist and is a self-issued message, no new contact is created
+        if (isSelfMessage) {
+            return;
+        }
         const newLinkman = {
             _id: getFriendId(
                 state.getIn(['user', '_id']),
@@ -95,6 +98,10 @@ socket.on('message', (message) => {
                 action.addLinkmanMessages(newLinkman._id, res);
             }
         });
+    }
+
+    if (isSelfMessage) {
+        return;
     }
 
     if (windowStatus === 'blur' && state.getIn(['ui', 'notificationSwitch'])) {

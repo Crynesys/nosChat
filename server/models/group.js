@@ -34,6 +34,7 @@ const GroupSchema = new Schema({
         },
     ],
     nosAddress: String,
+    description: String,
 });
 
 const Group = mongoose.model('Group', GroupSchema);

@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React from 'react';
 import PropTypes from 'prop-types';
 
@@ -21,7 +20,7 @@ function handleError(e) {
 const Avatar = ({ src, size = 60, onClick = noop, className = '' }) => (
     <img
         className={`component-avatar ${className}`}
-        src="http://identicon.org?t={src}&s=256"
+        src={`http://identicon.org?t=${src}&s=256`}
         style={{ width: size, height: size, borderRadius: size / 2 }}
         onClick={onClick}
         onError={handleError}

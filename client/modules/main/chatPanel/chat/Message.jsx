@@ -10,6 +10,7 @@ import Dialog from '@/components/Dialog';
 import Time from 'utils/time';
 import expressions from 'utils/expressions';
 
+
 const Prism = require('prismjs/components/prism-core.js');
 require('prismjs/themes/prism.css');
 
@@ -173,6 +174,7 @@ class Message extends Component {
                 `<a href="${r}" rel="noopener noreferrer" target="_blank">${r}</a>`
             ),
         );
+
         return (
             <div className="text" dangerouslySetInnerHTML={{ __html: Message.convertExpression(content) }} />
         );
@@ -183,7 +185,7 @@ class Message extends Component {
         if (src.startsWith('blob')) {
             [src] = src.split('?');
         }
-        // Impostare la larghezza dell'altezza su 1 per evitare che venga supportata dall'immagine originale
+
         return (
             <div className={`image ${loading ? 'loading' : ''} ${/huaji=true/.test(content) ? 'huaji' : ''}`}>
                 <img className="img" src={src} width="1" height="1" onDoubleClick={this.showImageViewer} />
@@ -230,7 +232,7 @@ class Message extends Component {
                     </div>
                     <p>Vista</p>
                 </div>
-                <Dialog className="code-viewer" title="Controlla il codice" visible={this.state.showCode} onClose={this.hideCode}>
+                <Dialog className="code-viewer" title="Show the code" visible={this.state.showCode} onClose={this.hideCode}>
                     <pre className="pre" dangerouslySetInnerHTML={{ __html: html }} />
                 </Dialog>
             </div>
@@ -259,7 +261,7 @@ class Message extends Component {
         }
         default:
             return (
-                <div className="unknown">Tipo di messaggio non supportato</div>
+                <div className="unknown">Message not supported</div>
             );
         }
     }

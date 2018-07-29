@@ -1,10 +1,8 @@
-/* eslint-disable */
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
 import Avatar from '@/components/Avatar';
 import Time from 'utils/time';
-import ShowWalletInfo from '../../ShowWalletInfo';
 
 class Linkman extends Component {
     static propTypes = {

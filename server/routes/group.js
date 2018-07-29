@@ -11,11 +11,11 @@ async function getGroupOnlineMembers(group) {
     const sockets = await Socket
         .find(
             { user: group.members },
-            { os: 1, browser: 1, environment: 1, user: 1 },
+            { os: 1, browser: 1, environment: 1, user: 1, neoAddress: 1 },
         )
         .populate(
             'user',
-            { username: 1, avatar: 1 },
+            { username: 1, avatar: 1, neoAddress: 1 },
         );
     const filterSockets = sockets.reduce((result, socket) => {
         result[socket.user] = socket;
@@ -27,16 +27,15 @@ async function getGroupOnlineMembers(group) {
 module.exports = {
     async createGroup(ctx) {
         const ownGroupCount = await Group.count({ creator: ctx.socket.user });
-        assert(ownGroupCount < config.maxGroupsCount, `Impossibile creare il gruppo, Hai già creato ${config.maxGroupsCount} gruppi`);
+        // assert(ownGroupCount < config.maxGroupsCount, `You can not create another group, reached the  ${config.maxGroupsCount} groups limit`);
 
-
-        const { name } = ctx.data;
-        assert(name, 'Il nome del gruppo non può essere vuoto');
+        const { name, address, announcement } = ctx.data;
+        assert(name, 'Group name can not be void');
 
 
         const group = await Group.findOne({ name });
-        assert(!group, 'Questo gruppo esiste già');
-
+        assert(!group, 'This Group already exists');
+        // console.log(`indirizzo :${address}`);
 
         let newGroup = null;
         try {
@@ -45,11 +44,12 @@ module.exports = {
                 avatar: getRandomAvatar(),
                 creator: ctx.socket.user,
                 members: [ctx.socket.user],
+                nosAddress: address,
+                announcement,
             });
         } catch (err) {
             if (err.name === 'ValidationError') {
-                return 'Il nome del gruppo contiene caratteri non supportati o la lunghezza supera il limite';
-
+                return 'Name of the group is not valid';
             }
             throw err;
         }
@@ -61,16 +61,18 @@ module.exports = {
             avatar: newGroup.avatar,
             createTime: newGroup.createTime,
             creator: newGroup.creator,
+            nosAddress: address,
+            announcement,
         };
     },
     async joinGroup(ctx) {
         const { groupId } = ctx.data;
-        assert(isValid(groupId), 'ID di gruppo non valido');
+        assert(isValid(groupId), 'Group ID is not valid');
 
         const group = await Group.findOne({ _id: groupId });
-        assert(group, 'Impossibile entrare nel gruppo, Il gruppo non esiste');
+        assert(group, 'The Group does not exists');
 
-        assert(group.members.indexOf(ctx.socket.user) === -1, 'Sei già nel gruppo');
+        assert(group.members.indexOf(ctx.socket.user) === -1, 'You are already a member');
 
 
         group.members.push(ctx.socket.user);
@@ -94,19 +96,21 @@ module.exports = {
             createTime: group.createTime,
             creator: group.creator,
             messages,
+            nosAddress: group.nosAddress,
+            announcement: group.announcement,
         };
     },
     async leaveGroup(ctx) {
         const { groupId } = ctx.data;
-        assert(isValid(groupId), 'ID di gruppo non valido');
+        assert(isValid(groupId), 'Group ID is not valid');
 
         const group = await Group.findOne({ _id: groupId });
-        assert(group, 'Il gruppo non esiste');
+        assert(group, 'The Group does not exists');
         assert(group.creator.toString() !== ctx.socket.user.toString(), 'Il proprietario non può lasciare il gruppo che ha creato');
 
 
         const index = group.members.indexOf(ctx.socket.user);
-        assert(index !== -1, 'Non sei nel gruppo');
+        assert(index !== -1, 'You are not in the group');
 
 
         group.members.splice(index, 1);
@@ -118,20 +122,20 @@ module.exports = {
     },
     async getGroupOnlineMembers(ctx) {
         const { groupId } = ctx.data;
-        assert(isValid(groupId), 'ID di gruppo non valido');
+        assert(isValid(groupId), 'Group ID is not valid');
 
         const group = await Group.findOne({ _id: groupId });
-        assert(group, 'Il gruppo non esiste');
+        assert(group, 'The Group does not exists');
         return getGroupOnlineMembers(group);
     },
     async getGroupInfos(ctx) {
         const { groupId } = ctx.data;
-        assert(isValid(groupId), 'ID di gruppo non valido');
+        assert(isValid(groupId), 'Group ID is not valid');
 
         const group = await Group.findOne({
             _id: groupId,
         });
-        assert(group, 'Il gruppo non esiste');
+        assert(group, 'The Group does not exists');
 
         return {
             _id: group._id,
@@ -140,18 +144,19 @@ module.exports = {
             createTime: group.createTime,
             creator: group.creator,
             nosAddress: group.nosAddress,
+            announcement: group.announcement,
         };
     },
 
     async getDefaultGroupOnlineMembers() {
         const group = await Group.findOne({ isDefault: true });
-        assert(group, 'Il gruppo non esiste');
+        assert(group, 'The Group does not exist');
         return getGroupOnlineMembers(group);
     },
     async changeGroupAvatar(ctx) {
         const { groupId, avatar } = ctx.data;
-        assert(isValid(groupId), 'ID di gruppo non valido');
-        assert(avatar, 'L\'indirizzo Avatar non può essere vuoto ');
+        assert(isValid(groupId), 'Group ID is not valid');
+        assert(avatar, 'The avatar address can not be void ');
 
 
         await Group.update({ _id: groupId }, { avatar });

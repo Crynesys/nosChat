@@ -13,7 +13,7 @@ const EachFetchMessagesCount = 30;
 module.exports = {
     async sendMessage(ctx) {
         const { to, type, content } = ctx.data;
-        assert(to, 'to Non può essere vuoto');
+        assert(to, 'to can not be void');
 
 
         let groupId = '';
@@ -22,19 +22,19 @@ module.exports = {
             groupId = to;
             assert(isValid(groupId), 'ID di gruppo non valido');
             const group = await Group.findOne({ _id: to });
-            assert(group, 'Il gruppo non esiste');
+            assert(group, 'The Group does not exists');
 
         } else {
             userId = to.replace(ctx.socket.user, '');
             assert(isValid(userId), 'ID utente non valido');
             const user = await User.findOne({ _id: userId });
-            assert(user, 'L\'utente non esiste ');
+            assert(user, 'The User does not exists ');
 
         }
 
         let messageContent = content;
         if (type === 'text') {
-            assert(messageContent.length <= 2048, 'Messaggio troppo lungo');
+            assert(messageContent.length <= 2048, 'Message too long');
             messageContent = xss(content);
         }
 
@@ -67,6 +67,12 @@ module.exports = {
             sockets.forEach((socket) => {
                 console.log(socket.id);
                 ctx._io.to(socket.id).emit('message', messageData);
+            });
+            const selfSockets = await Socket.find({ user: ctx.socket.user });
+            selfSockets.forEach((socket) => {
+                if (socket.id !== ctx.socket.id) {
+                    ctx._io.to(socket.id).emit('message', messageData);
+                }
             });
         }
 

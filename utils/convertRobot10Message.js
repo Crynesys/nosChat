@@ -8,7 +8,7 @@ export default function convertRobot10Message(message) {
             message.type = parseMessage.type;
             message.content = parseMessage.content;
         } catch (err) {
-            console.warn('Impossibile risolvere il messaggio del robot10', err);
+            console.warn('The message can not be resolved', err);
 
         }
     }

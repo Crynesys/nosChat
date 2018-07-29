@@ -24,7 +24,7 @@ module.exports = {
             { name: { $regex: keywords } },
             { avatar: 1, name: 1, members: 1, nosAddress: 1 },
         );
-
+        // console.log(groups);
         return {
             users,
             groups: groups.map(group => ({
@@ -47,7 +47,7 @@ module.exports = {
 
 
         const response = await axios.get(url);
-        assert(response.status === 200, 'Impossibile cercare il pacchetto di espressioni, riprova');
+        assert(response.status === 200, 'Can not load the gifs, retry');
 
 
         const images = response.data.data;
@@ -60,7 +60,7 @@ module.exports = {
             jsonObj.title = gif.title;
             return jsonObj;
         });
-        console.log(returnData);
+        // console.log(returnData);
         return returnData;
 
         /* const res = await axios.get(`https://www.doutula.com/search?keyword=${encodeURIComponent(keywords)}`);
@@ -76,7 +76,7 @@ module.exports = {
         }
 
         const res = await axios.get('https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials&client_id=pw152BzvaSZVwrUf3Z2OHXM6&client_secret=fa273cc704b080e85ad61719abbf7794');
-        assert(res.status === 200, 'Richiesta del token Baidu fallito');
+        assert(res.status === 200, 'Badu Token request failed');
 
 
         baiduToken = res.data.access_token;

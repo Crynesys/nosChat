@@ -12,7 +12,7 @@ module.exports = function () {
     };
     return async (ctx, next) => {
         if (!noUseLoginEvent[ctx.event] && !ctx.socket.user) {
-            ctx.res = 'Riprovare';
+            ctx.res = 'Retry';
             return;
         }
         await next();

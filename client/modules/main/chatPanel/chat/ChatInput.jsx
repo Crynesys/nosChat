@@ -15,6 +15,7 @@ import Message from '@/components/Message';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import Loading from '@/components/Loading';
+import SWMessage from '@/components/SWMessage';
 
 import getRandomHuaji from 'utils/getRandomHuaji';
 import readDiskFile from 'utils/readDiskFile';
@@ -128,13 +129,13 @@ class ChatInput extends Component {
     @autobind
     handleSendCode() {
         if (!this.props.connect) {
-            return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+            return Message.error('Can not send messages, you are offline');
         }
 
         const language = this.codeEditor.getLanguage();
         const rawCode = this.codeEditor.getValue();
         if (rawCode === '') {
-            return Message.warning('Inserire il codice da inviare');
+            return Message.warning('Insert the code to send');
         }
 
         const code = `@language=${language}@${rawCode}`;
@@ -178,7 +179,7 @@ class ChatInput extends Component {
         } else if (expressionShortcut[e.key]) {
             if (e.altKey) {
                 if (!this.props.connect) {
-                    return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+                    return Message.error('Can not send messages, you are offline');
                 }
                 const id = this.addSelfMessage('text', expressionShortcut[e.key]);
                 this.sendMessage(id, 'text', expressionShortcut[e.key]);
@@ -189,7 +190,7 @@ class ChatInput extends Component {
     @autobind
     sendTextMessage() {
         if (!this.props.connect) {
-            return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+            return Message.error('Can not send messages, you are offline');
         }
 
         const message = this.message.value.trim();
@@ -247,7 +248,7 @@ class ChatInput extends Component {
     }
     sendImageMessage(image) {
         if (image.length > config.maxImageSize) {
-            return Message.warning('L\'immagine da inviare è troppo grande', 3);
+            return Message.warning('The image is over the limit, can not be uploaded', 3);
         }
 
         const { user, focus } = this.props;
@@ -283,7 +284,7 @@ class ChatInput extends Component {
     @autobind
     async handleSelectFile() {
         if (!this.props.connect) {
-            return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+            return Message.error('Can not send messages, you are offline');
         }
         const image = await readDiskFile('blob', 'image/png,image/jpeg,image/gif');
         this.sendImageMessage(image);
@@ -298,7 +299,7 @@ class ChatInput extends Component {
     handlePaste(e) {
         if (!this.props.connect) {
             e.preventDefault();
-            return Message.error('Impossibile inviare un messaggio, al momento sei offline');
+            return Message.error('Can not send messages, you are offline');
         }
         const { items } = (e.clipboardData || e.originalEvent.clipboardData);
         const { types } = (e.clipboardData || e.originalEvent.clipboardData);
@@ -389,17 +390,17 @@ class ChatInput extends Component {
     featureDropdown = (
         <div className="feature-dropdown">
             <Menu onClick={this.handleFeatureMenuClick}>
-                <MenuItem key="expression">Invia emoticon</MenuItem>
-                <MenuItem key="image">Invia foto</MenuItem>
-                <MenuItem key="code">Invia il codice</MenuItem>
+                <MenuItem key="expression">Send a gif</MenuItem>
+                <MenuItem key="image">Send an Image</MenuItem>
+                <MenuItem key="code">Send code</MenuItem>
             </Menu>
         </div>
     )
     nOSDropdown = (
         <div className="feature-dropdown">
             <Menu onClick={this.handleFeatureMenuClick}>
-                <MenuItem key="neo">Invia NEO</MenuItem>
-                <MenuItem key="gas">Invia Gas</MenuItem>
+                <MenuItem key="neo">Send NEO</MenuItem>
+                <MenuItem key="gas">Send Gas</MenuItem>
             </Menu>
         </div>
     )
@@ -430,18 +431,18 @@ class ChatInput extends Component {
                     </Dropdown>
                     <Dialog
                         className="codeEditor-dialog"
-                        title="Si prega di inserire il codice da inviare"
+                        title="Please insert the code here"
                         visible={codeInputVisible}
                         onClose={this.handleCodeEditorClose}
                     >
                         <div className="container">
                             <CodeEditor ref={i => this.codeEditor = i} />
-                            <button className="codeEditor-button" onClick={this.handleSendCode}>Inviare</button>
+                            <button className="codeEditor-button" onClick={this.handleSendCode}>Send</button>
                         </div>
                     </Dialog>
                     <Dialog
                         className="expressionSearch-dialog"
-                        title="Cerca emoticon"
+                        title="Search gifs"
                         visible={expressionSearchVisible}
                         onClose={this.closeExpressionSearch}
                     >
@@ -479,7 +480,7 @@ class ChatInput extends Component {
         }
         return (
             <div className="chat-chatInput guest">
-                <p>effettuare il <b onClick={ChatInput.handleLogin}>Login</b> per entrare nella chat</p>
+                <p>Please <b onClick={ChatInput.handleLogin}>Login</b> to enter the chat</p>
             </div>
         );
     }

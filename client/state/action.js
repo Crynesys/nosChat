@@ -25,6 +25,7 @@ async function setUser(user) {
             avatar: friend.to.avatar,
             name: friend.to.username,
             to: friend.to._id,
+            neoAddress: friend.to.neoAddress,
         });
     });
 

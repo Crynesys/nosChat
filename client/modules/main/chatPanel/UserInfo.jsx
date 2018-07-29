@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
@@ -17,6 +16,7 @@ import action from '@/state/action';
 import fetch from 'utils/fetch';
 import getFriendId from 'utils/getFriendId';
 import Input from '@/components/Input';
+import SWMessage from '@/components/SWMessage';
 
 class UserInfo extends Component {
     static propTypes = {
@@ -25,12 +25,33 @@ class UserInfo extends Component {
         onClose: PropTypes.func,
         linkmans: ImmutablePropTypes.list,
         userId: PropTypes.string,
+        nosAddress: PropTypes.string,
     }
 
+    FindNosAddress() {
+        const { userInfo } = this.props;
+        console.log(userInfo);
+        return null;
+        // const userId = userInfo._id;
+        // let err = null;
+        // let res = null;
+        // alert(`FindNosAddress ${userId}`);
+        // let nosAddress = null;
+        // if (userId === undefined) {
+        //     alert("userInfo._id == 'undefined'");
+        //     return null;
+        // }
+        // [err, res] = await fetch('getUserInfos', { userId });
+        // if (!err) {
+        //     alert("res "+res);
+        //     nosAddress = res;
+        // }
+        // return nosAddress;
+    }
 
     @autobind
     handleFocusUser() {
-        const { userInfo, userId, onClose } = this.props;
+        const { userInfo, userId, onClose, nosAddress } = this.props;
         onClose();
         action.setFocus(getFriendId(userInfo._id, userId));
     }
@@ -90,10 +111,12 @@ class UserInfo extends Component {
 
     @autobind
     handleFeatureMenuClick({ key }) {
-        const nos = window.NOS.V1;
+        // const userInfo = this.state;
         const { userInfo } = this.props;
+
+        const nos = window.NOS.V1;
         let asset = null;
-        const quantity = this.assetQty.getValue();
+        const amount = this.assetQty.getValue();
         const receiver = userInfo.neoAddress;
         switch (key) {
         case 'neo': {
@@ -108,24 +131,56 @@ class UserInfo extends Component {
         }
         default:
         }
-        nos.send({ asset, quantity, receiver })
-            .then(txid => Message.success(`${quantity} NEO inviati, transazione ${txid}`))
-            .catch(err => Message.error(`Error: ${err.message}`));
+        console.log(`asset: ${asset} amount: ${amount} receiver: ${receiver}`);
+        alert(receiver);
+        nos.send({ asset, amount, receiver })
+            .then(txid => SWMessage.success(`${amount} ${key} inviati, transazione ${txid}`, 3))
+            .catch((err) => {
+                console.log(err.message);
+                console.log(err);
+                SWMessage.error(`Error: ${err.message}`);
+            });
+
+        // switch (key) {
+        //     case 'neo': {
+        //         const neo = 'c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b';
+        //         // const gas = "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7";
+
+        //         const quantity = this.assetQty.getValue();
+        //         nos.send(neo, quantity, 'AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU')
+        //             .then(txid => alert(`${quantity} NEO inviati, transazione ${txid}`))
+        //             .catch(err => alert(`Error: ${err.message}`));
+        //         break;
+        //     }
+        //     case 'gas': {
+        //         const gas = '602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7';
+
+        //         const quantity = this.assetQty.getValue();
+        //         nos.send(gas, quantity, 'AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU')
+        //             .then(txid => alert(`${quantity} GAS inviati, transazione ${txid}`))
+        //             .catch(err => alert(`Error: ${err.message}`));
+        //         break;
+        //     }
+        //     default:
+        // }
     }
+
     nOSDropdown = (
         <div className="feature-dropdown">
             <Menu onClick={this.handleFeatureMenuClick}>
-                <MenuItem key="neo">Invia NEO</MenuItem>
-                <MenuItem key="gas">Invia Gas</MenuItem>
+                <MenuItem key="neo">Send NEO</MenuItem>
+                <MenuItem key="gas">Send Gas</MenuItem>
             </Menu>
         </div>
     )
 
     render() {
-        const { visible, userInfo, onClose, linkmans } = this.props;
+        const { visible, userInfo, onClose, linkmans, neoAddress } = this.props;
         const isFriend = linkmans.find(l => l.get('to') === userInfo._id && l.get('type') === 'friend');
         const indirizzo = userInfo.neoAddress;
-        const showNosData = window.hasOwnProperty('NOS');
+        const showNosData = ('NOS' in window) && indirizzo;//
+        console.log(indirizzo);
+        // alert(`indirizzo ${indirizzo}`);
         // info-dialog  className="pane"
         return (
             <Dialog className="dialog fiora-info " visible={visible} onClose={onClose}>
@@ -139,9 +194,9 @@ class UserInfo extends Component {
                                     <br />
                                     {showNosData &&
                                         <React.Fragment>
-                                            <p> Address : {userInfo.neoAddress} </p>
+                                            <p> Address : {indirizzo} </p>
                                             <br />
-                                            <p> quantità :  </p>
+                                            <p> Amount :  </p>
                                             <Input ref={i => this.assetQty = i} />
                                             <br />
 
@@ -166,15 +221,15 @@ class UserInfo extends Component {
                                             <p>Questo è un alieno</p>
                                         </div>
                                         :
-                                        <div className="info">
+                                        <div className="header">
                                             {
-                                                isFriend ? <Button onClick={this.handleFocusUser}>Invia un messaggio</Button> : null
+                                                isFriend ? <Button onClick={this.handleFocusUser}>Send amessage</Button> : null
                                             }
                                             {
                                                 isFriend ?
-                                                    <Button type="danger" onClick={this.handleDeleteFriend}>Elimina amico</Button>
+                                                    <Button type="danger" onClick={this.handleDeleteFriend}>Delete friendship</Button>
                                                     :
-                                                    <Button onClick={this.handleAddFriend}>Aggiungi come amico</Button>
+                                                    <Button onClick={this.handleAddFriend}>Add as a friend</Button>
                                             }
                                         </div>
                                 }

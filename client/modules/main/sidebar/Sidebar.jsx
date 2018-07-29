@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
@@ -135,7 +134,7 @@ class Sidebar extends Component {
     async selectAvatar() {
         const file = await readDiskFile('blob', 'image/png,image/jpeg,image/gif');
         if (file.length > config.maxImageSize) {
-            return Message.error('Impossibile impostare l\'avatar, selezionare un\'immagine inferiore a 1 MB');
+            return Message.error('The image file for the avatar must be less than 1 MB');
         }
 
         this.toggleAvatarLoading();
@@ -147,7 +146,7 @@ class Sidebar extends Component {
                 result.subscribe({
                     error: (err) => {
                         console.error(err);
-                        Message.error('Impossibile caricare l\'immagine');
+                        Message.error('Can not upload the image');
                         this.toggleAvatarLoading();
                     },
                     complete: (info) => {
@@ -158,7 +157,7 @@ class Sidebar extends Component {
                                 this.toggleAvatarLoading();
                             } else {
                                 action.setAvatar(URL.createObjectURL(file.result));
-                                Message.success('Avatar Modificato con successo');
+                                Message.success('Avatar successfully updated');
                                 this.toggleAvatarLoading();
                             }
                         });
@@ -177,7 +176,7 @@ class Sidebar extends Component {
         this.toggleBackgroundLoading();
         const file = await readDiskFile('base64', 'image/png,image/jpeg,image/gif');
         if (file.length > config.maxBackgroundImageSize) {
-            return Message.error('Impossibile impostare l\'immagine di sfondo.Seleziona un\'immagine di dimensioni inferiori a 3 MB.');
+            return Message.error('The background image file must be less than 3 MB.');
         }
         action.setBackgroundImage(file.result);
         this.toggleBackgroundLoading();
@@ -197,34 +196,34 @@ class Sidebar extends Component {
                         <IconButton width={40} height={40} icon="setting" iconSize={26} onClick={this.openSettingDialog} />
                         <IconButton width={40} height={40} icon="logout" iconSize={26} onClick={Sidebar.logout} />
                     </div>
-                    <Dialog className="dialog system-setting" visible={settingDialog} title="Impostazioni di sistema" onClose={this.closeSettingDialog}>
+                    <Dialog className="dialog system-setting" visible={settingDialog} title="Settings" onClose={this.closeSettingDialog}>
                         <div className="content">
                             <div>
-                                <p>Ripristina</p>
+                                <p>Reset</p>
                                 <div className="buttons">
-                                    <Button onClick={Sidebar.resetThume}>Ripristina tema predefinito</Button>
-                                    <Button onClick={Sidebar.resetSound}>Ripristina tono predefinito</Button>
+                                    <Button onClick={Sidebar.resetThume}>Reset the theme</Button>
+                                    <Button onClick={Sidebar.resetSound}>Reset tune</Button>
                                 </div>
                             </div>
                             <div>
-                                <p>Imposta</p>
+                                <p>Settings</p>
                                 <div className="switch">
-                                    <p>Visualizza l'indirizzo</p>
+                                    <p>Show the address</p>
                                     <Switch
                                         onChange={action.setNosAddress}
                                         checked={showNosAddress}
                                     />
-                                    <p>Promemoria sonoro</p>
+                                    <p>Sound</p>
                                     <Switch
                                         onChange={action.setSoundSwitch}
                                         checked={soundSwitch}
                                     />
-                                    <p>Promemoria desktop</p>
+                                    <p>Desktop sound</p>
                                     <Switch
                                         onChange={action.setNotificationSwitch}
                                         checked={notificationSwitch}
                                     />
-                                    <p>Messaggio Vocale</p>
+                                    <p>Voice Message</p>
                                     <Switch
                                         onChange={action.setVoiceSwitch}
                                         checked={voiceSwitch}
@@ -232,27 +231,27 @@ class Sidebar extends Component {
                                 </div>
                             </div>
                             <div>
-                                <p>Tono Rapido</p>
+                                <p>Tune</p>
                                 <div className="sounds">
                                     <RadioGroup value={sound} onChange={Sidebar.handleSelectSound} horizontal>
                                         <RadioButton value="default">Default</RadioButton>
-                                        <RadioButton value="apple">Mela</RadioButton>
+                                        <RadioButton value="apple">Apple</RadioButton>
                                         <RadioButton value="pcqq">Computer</RadioButton>
                                         <RadioButton value="mobileqq">Mobile</RadioButton>
-                                        <RadioButton value="momo">via via</RadioButton>
+                                        <RadioButton value="momo">Go go</RadioButton>
                                         <RadioButton value="huaji">Funny</RadioButton>
                                     </RadioGroup>
                                 </div>
                             </div>
                             <div>
-                                <p>Immagine di sfondo <span className="background-tip">L'immagine di sfondo verrà estesa alle dimensioni della finestra del browser, un rapporto ragionevole otterrà risultati migliori</span></p>
+                                <p>Immagine di sfondo <span className="background-tip">Image will be stretched to cover the whole browser page</span></p>
                                 <div className="image-preview">
                                     <img className={backgroundLoading ? 'blur' : ''} src={backgroundImage} onClick={this.selectBackgroundImage} />
                                     <ReactLoading className={`loading ${backgroundLoading ? 'show' : 'hide'}`} type="spinningBubbles" color={`rgb(${primaryColor}`} height={100} width={100} />
                                 </div>
                             </div>
                             <div>
-                                <p>Colore del tema</p>
+                                <p>Theme Color</p>
                                 <div className="color-info">
                                     <div style={{ backgroundColor: `rgb(${primaryColor})` }} />
                                     <span>{`rgb(${primaryColor})`}</span>
@@ -260,7 +259,7 @@ class Sidebar extends Component {
                                 <TwitterPicker className="color-picker" color={`rgb(${primaryColor})`} onChange={this.handlePrimaryColorChange} />
                             </div>
                             <div>
-                                <p>Colore del testo</p>
+                                <p>Text Color</p>
                                 <div className="color-info">
                                     <div style={{ backgroundColor: `rgb(${primaryTextColor})` }} />
                                     <span>{`rgb(${primaryTextColor})`}</span>
@@ -269,7 +268,7 @@ class Sidebar extends Component {
                             </div>
                         </div>
                     </Dialog>
-                    <Dialog className="dialog selfInfo" visible={userDialog} title="Impostazioni delle informazioni personali" onClose={this.closeUserDialog}>
+                    <Dialog className="dialog selfInfo" visible={userDialog} title="Personal Info settings" onClose={this.closeUserDialog}>
                         <div className="content">
                             <div>
                                 {showNosData && <ShowWalletInfo />}
@@ -284,10 +283,10 @@ class Sidebar extends Component {
                     <Dialog className="dialog fiora-info " visible={infoDialog} title="info" onClose={this.closeInfo}>
                         <div className="content">
                             <div>
-                                <p>piccola Chat per gestire gruppi con interessi comuni</p>
+                                <p>little Chat with the possibility to interact with nOS functionalities</p>
                             </div>
                             <div>
-                                <p>Accedendo dal client di nOS è possibile sfruttare le operazioni messe a disposizione per inviare asset tra memebri della chat erichiamare smart contract NEO.</p>
+                                <p>Using the nOS Client to access the chat you can send assets to groups and chat members</p>
                             </div>
                         </div>
                     </Dialog>

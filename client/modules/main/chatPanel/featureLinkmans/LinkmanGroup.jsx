@@ -23,7 +23,7 @@ class LinkmanGroup extends Component {
         const lastMessage = linkman.getIn(['messages', linkman.get('messages').size - 1]);
 
         let time = new Date(linkman.get('createTime'));
-        let preview = 'Nessuna novità';
+        let preview = 'no news';
         if (lastMessage) {
             time = new Date(lastMessage.get('createTime'));
             preview = `${lastMessage.get('content')}`;

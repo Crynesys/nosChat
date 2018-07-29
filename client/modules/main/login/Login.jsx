@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React, { Component } from 'react';
 import autobind from 'autobind-decorator';
 import platform from 'platform';
@@ -40,7 +39,7 @@ class Login extends Component {
                 socket.emit('register', {
                     username: this.username.getValue(),
                     password: this.password.getValue(),
-                    neoAddress: neoaddress,
+                    neoAddress: address,
                     os: platform.os.family,
                     browser: platform.name,
                     environment: platform.description,
@@ -48,7 +47,7 @@ class Login extends Component {
                     if (typeof res === 'string') {
                         Message.error(res);
                     } else {
-                        Message.success('Utente creato con successo');
+                        Message.success('User registered successfully');
                         action.setUser(res);
                         action.closeLoginDialog();
                         window.localStorage.setItem('token', res.token);
@@ -67,7 +66,7 @@ class Login extends Component {
                 if (typeof res === 'string') {
                     Message.error(res);
                 } else {
-                    Message.success('Utente creato con successo');
+                    Message.success('User registered successfully');
                     action.setUser(res);
                     action.closeLoginDialog();
                     window.localStorage.setItem('token', res.token);
@@ -78,7 +77,7 @@ class Login extends Component {
     renderLogin() {
         return (
             <div className="pane">
-                <h3>Utente</h3>
+                <h3>User</h3>
                 <Input ref={i => this.username = i} />
                 <h3>Password</h3>
                 <Input type="password" ref={i => this.password = i} />
@@ -89,11 +88,11 @@ class Login extends Component {
     renderRegister() {
         return (
             <div className="pane">
-                <h3>Utente</h3>
+                <h3>User</h3>
                 <Input ref={i => this.username = i} />
                 <h3>Password</h3>
                 <Input type="password" ref={i => this.password = i} />
-                <button onClick={this.handleRegister}>Registrati</button>
+                <button onClick={this.handleRegister}>Register</button>
             </div>
         );
     }
